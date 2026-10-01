@@ -10,6 +10,8 @@ import {
   type PlayerId,
   type PlayerInfo,
   type RoomState,
+  DEFAULT_PIECE_COUNT,
+  DIFFICULTY_LABELS,
   MAX_IMAGE_DATA_URL_LENGTH,
   MAX_IMAGE_LONG_SIDE,
   PIECE_COUNTS,
@@ -43,6 +45,7 @@ const roomCodeEl = $('room-code');
 const shareLink = $<HTMLInputElement>('share-link');
 const copyBtn = $<HTMLButtonElement>('copy-btn');
 const waitingThumb = $<HTMLImageElement>('waiting-thumb');
+const waitingIcon = $('waiting-icon');
 const waitingPresence = $('waiting-presence');
 const waitingText = $('waiting-text');
 const leaveBtn = $<HTMLButtonElement>('leave-btn');
@@ -58,6 +61,15 @@ const winTime = $('win-time');
 const againBtn = $<HTMLButtonElement>('again-btn');
 const confetti = $('confetti');
 const toastEl = $('toast');
+const hudExit = $<HTMLButtonElement>('hud-exit');
+const winExit = $<HTMLButtonElement>('win-exit');
+const confirmExit = $('confirm-exit');
+const confirmExitOk = $<HTMLButtonElement>('confirm-exit-ok');
+const confirmExitCancel = $<HTMLButtonElement>('confirm-exit-cancel');
+const confirmExitText = $('confirm-exit-text');
+const partnerLeft = $('partner-left');
+const partnerLeftSolo = $<HTMLButtonElement>('partner-left-solo');
+const partnerLeftExit = $<HTMLButtonElement>('partner-left-exit');
 
 codeInput.maxLength = ROOM_CODE_LENGTH;
 
@@ -81,14 +93,12 @@ let boardToken = 0;
 /** Board events that arrive while the board image is still loading. */
 let pendingBoardEvents: ((b: Board) => void)[] = [];
 let prepared: PreparedImage | null = null;
-let createCount: PieceCount = 24;
-let againCount: PieceCount = 24;
+let createCount: PieceCount = DEFAULT_PIECE_COUNT;
+let againCount: PieceCount = DEFAULT_PIECE_COUNT;
 /** Local clock time the current game started (avoids server clock skew). */
 let localStartedAt = 0;
 let hasConnectedOnce = false;
 let busy = false;
-
-const DIFFICULTY_LABELS: Record<PieceCount, string> = { 12: 'Easy', 24: 'Medium', 48: 'Hard' };
 
 const playerKey = (code: string) => `puzzle-player:${code}`;
 
@@ -366,14 +376,51 @@ function leaveRoom(): void {
   myId = null;
   destroyBoard();
   winOverlay.hidden = true;
+  confetti.innerHTML = '';
+  confirmExit.hidden = true;
+  partnerLeft.hidden = true;
+  waitingThumb.removeAttribute('src');
+  winImage.removeAttribute('src');
   setUrlRoom(null);
   showScreen('home');
 }
 
-leaveBtn.addEventListener('click', () => {
-  // The server keeps the room for its TTL; reloading drops our socket from it.
-  setUrlRoom(null);
-  location.reload();
+/** Give up our seat for good: tell the server, forget the stored id, and go home. */
+function exitRoom(): void {
+  const code = room?.code;
+  if (code && myId) {
+    socket.emit('leaveRoom', { roomCode: code, playerId: myId });
+    sessionStorage.removeItem(playerKey(code));
+    localStorage.removeItem(playerKey(code));
+  }
+  leaveRoom();
+}
+
+/** Exit, asking first if a game is in progress. */
+function requestExit(): void {
+  if (room?.phase !== 'playing') return exitRoom();
+  const partnerHere = room.players.some((p) => p.id !== myId);
+  confirmExitText.textContent = partnerHere
+    ? 'Your partner can keep going without you.'
+    : 'Your progress on this puzzle will be lost.';
+  confirmExit.hidden = false;
+  confirmExitCancel.focus();
+}
+
+leaveBtn.addEventListener('click', exitRoom);
+winExit.addEventListener('click', exitRoom);
+hudExit.addEventListener('click', requestExit);
+confirmExitCancel.addEventListener('click', () => (confirmExit.hidden = true));
+confirmExitOk.addEventListener('click', exitRoom);
+confirmExit.addEventListener('click', (e) => {
+  if (e.target === confirmExit) confirmExit.hidden = true;
+});
+partnerLeftSolo.addEventListener('click', () => (partnerLeft.hidden = true));
+partnerLeftExit.addEventListener('click', exitRoom);
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  confirmExit.hidden = true;
+  partnerLeft.hidden = true;
 });
 
 copyBtn.addEventListener('click', async () => {
@@ -400,8 +447,14 @@ function enterRoom(playerId: PlayerId, state: RoomState): void {
   roomCodeEl.textContent = state.code;
   hudCode.textContent = state.code;
   shareLink.value = shareUrl(state.code);
-  waitingThumb.src = state.image;
-  winImage.src = state.image;
+  // Only the host (who picked the photo) gets a thumbnail; nobody else sees it before the win.
+  const isHost = state.players.some((p) => p.id === playerId && p.isHost);
+  if (isHost) waitingThumb.src = state.image;
+  else waitingThumb.removeAttribute('src');
+  waitingThumb.hidden = !isHost;
+  waitingIcon.hidden = isHost;
+  confirmExit.hidden = true;
+  partnerLeft.hidden = true;
   renderPresence();
 
   if (state.phase === 'waiting' || !state.game) {
@@ -544,7 +597,21 @@ socket.on('playerJoined', (player: PlayerInfo) => {
   else room.players.push(player);
   renderPresence();
   if (player.id !== myId && room.phase !== 'waiting') {
-    toast(wasKnown ? 'Your partner is back!' : 'Your partner joined!', 'info');
+    if (!wasKnown) partnerLeft.hidden = true;
+    toast(wasKnown ? 'Your partner is back!' : 'A partner joined!', 'info');
+  }
+});
+
+socket.on('partnerExited', (playerId) => {
+  if (!room || playerId === myId) return;
+  room.players = room.players.filter((p) => p.id !== playerId);
+  renderPresence();
+  if (room.phase === 'playing') {
+    confirmExit.hidden = true;
+    partnerLeft.hidden = false;
+    partnerLeftSolo.focus();
+  } else {
+    toast('Your partner left the puzzle.', 'info');
   }
 });
 
@@ -575,7 +642,8 @@ socket.on('start', (payload) => {
   timerEl.textContent = '00:00';
   winOverlay.hidden = true;
   confetti.innerHTML = '';
-  winImage.src = payload.image;
+  confirmExit.hidden = true;
+  winImage.removeAttribute('src');
   showScreen('game');
   void buildBoard(payload.seed, payload.pieces, true);
 });

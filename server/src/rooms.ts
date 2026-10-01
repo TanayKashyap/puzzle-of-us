@@ -8,7 +8,6 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   ROOM_TTL_MS,
-  SNAP_DISTANCE,
   WORLD_H,
   WORLD_W,
   clampToWorld,
@@ -18,6 +17,7 @@ import {
   randRange,
   randomSeed,
   slotPosition,
+  snapDistance,
   tabPad,
   type ClientToServerEvents,
   type CreateRoomAck,
@@ -145,7 +145,7 @@ function pickPilePosition(
   rand: () => number,
   others: { x: number; y: number }[],
 ): { x: number; y: number } {
-  const candidates = others.length === 0 ? 1 : 12;
+  const candidates = others.length === 0 ? 1 : 16;
   let best = randomMarginPoint(layout, rand);
   let bestDist = -1;
   for (let i = 0; i < candidates; i++) {
@@ -341,7 +341,8 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
     if (socket.data.roomCode) leaveCurrent();
     const guest: Player = {
       id: randomUUID(),
-      color: PLAYER_COLORS[room.players.length] ?? PLAYER_COLORS[1],
+      // The seat may have been freed by leaveRoom, so pick a color nobody is using.
+      color: PLAYER_COLORS.find((c) => !room.players.some((p) => p.color === c)) ?? PLAYER_COLORS[1],
       isHost: false,
       connected: true,
       socketId: null,
@@ -392,7 +393,7 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
     const game = room.game!;
     const slot = slotPosition(layout, piece.id);
     let result: 'snapped' | 'rejected' | 'free';
-    if (Math.hypot(x - slot.x, y - slot.y) <= SNAP_DISTANCE) {
+    if (Math.hypot(x - slot.x, y - slot.y) <= snapDistance(layout)) {
       result = 'snapped';
       piece.x = slot.x;
       piece.y = slot.y;
@@ -425,6 +426,37 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
     if (pieceCount !== undefined && pieceCount !== null && !isPieceCount(pieceCount)) return;
     if (isPieceCount(pieceCount)) cur.room.pieceCount = pieceCount;
     startGame(io, cur.room);
+  });
+
+  socket.on('leaveRoom', (payload, ack) => {
+    const code = typeof payload?.roomCode === 'string' ? payload.roomCode.trim().toUpperCase() : '';
+    const room = rooms.get(code);
+    const player =
+      typeof payload?.playerId === 'string' ? room?.players.find((p) => p.id === payload.playerId) : undefined;
+    if (socket.data.roomCode === code) {
+      socket.data.roomCode = undefined;
+      socket.data.playerId = undefined;
+      socket.leave(code);
+    }
+    if (room && player) {
+      // Unbind whichever socket currently holds this seat (normally this one).
+      const bound = player.socketId ? io.sockets.sockets.get(player.socketId) : undefined;
+      if (bound && bound.data.roomCode === room.code && bound.data.playerId === player.id) {
+        bound.data.roomCode = undefined;
+        bound.data.playerId = undefined;
+        bound.leave(room.code);
+      }
+      releaseHeldBy(io, room, player.id);
+      room.players = room.players.filter((p) => p !== player);
+      if (room.players.length === 0) {
+        cancelDeletion(room);
+        rooms.delete(room.code);
+      } else {
+        io.to(room.code).emit('partnerExited', player.id);
+        scheduleDeletionIfEmpty(room);
+      }
+    }
+    if (typeof ack === 'function') ack();
   });
 
   socket.on('disconnect', () => {

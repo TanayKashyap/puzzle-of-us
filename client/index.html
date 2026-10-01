@@ -67,7 +67,8 @@
       <!-- WAITING -->
       <section class="screen waiting" id="screen-waiting" hidden>
         <div class="card waiting-card">
-          <img class="waiting-thumb" id="waiting-thumb" alt="" />
+          <img class="waiting-thumb" id="waiting-thumb" alt="" hidden />
+          <div class="waiting-icon" id="waiting-icon" aria-hidden="true">🧩</div>
           <h2>Room ready!</h2>
           <p class="muted">Send this to your puzzle partner:</p>
           <div class="room-code" id="room-code">-----</div>
@@ -77,7 +78,7 @@
           </div>
           <div class="presence" id="waiting-presence"></div>
           <div class="waiting-status"><span class="spinner"></span> <span id="waiting-text">Waiting for your partner to join…</span></div>
-          <button class="btn btn-ghost btn-small" id="leave-btn" type="button">Leave room</button>
+          <button class="btn btn-exit btn-small" id="leave-btn" type="button">Exit room</button>
         </div>
       </section>
 
@@ -95,6 +96,7 @@
           <div class="hud-right">
             <span class="timer" id="timer">00:00</span>
             <div class="presence" id="hud-presence"></div>
+            <button class="btn btn-exit btn-hud" id="hud-exit" type="button" title="Leave this puzzle">Exit</button>
           </div>
         </div>
         <div class="stage" id="stage"></div>
@@ -110,6 +112,32 @@
           <div class="field-label">Play again with</div>
           <div class="pills" id="again-difficulty"></div>
           <button class="btn btn-primary" id="again-btn" type="button">Play again</button>
+          <button class="btn btn-exit btn-small" id="win-exit" type="button">Exit to home</button>
+        </div>
+      </div>
+
+      <!-- EXIT CONFIRM -->
+      <div class="modal" id="confirm-exit" role="dialog" aria-modal="true" aria-labelledby="confirm-exit-title" hidden>
+        <div class="card modal-card">
+          <h2 id="confirm-exit-title">Leave the puzzle?</h2>
+          <p class="muted" id="confirm-exit-text">Your partner can keep going without you.</p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost btn-small" id="confirm-exit-cancel" type="button">Keep playing</button>
+            <button class="btn btn-danger btn-small" id="confirm-exit-ok" type="button">Leave</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARTNER LEFT -->
+      <div class="modal" id="partner-left" role="dialog" aria-modal="true" aria-labelledby="partner-left-title" hidden>
+        <div class="card modal-card">
+          <div class="modal-icon" aria-hidden="true">👋</div>
+          <h2 id="partner-left-title">Your partner left the puzzle</h2>
+          <p class="muted">You can finish it solo, or share the link so someone else can hop in.</p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost btn-small" id="partner-left-exit" type="button">Exit too</button>
+            <button class="btn btn-primary btn-small" id="partner-left-solo" type="button">Keep going solo</button>
+          </div>
         </div>
       </div>
 

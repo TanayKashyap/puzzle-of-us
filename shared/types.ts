@@ -25,11 +25,22 @@
 export const WORLD_W = 1600;
 export const WORLD_H = 1000;
 
-/** Max distance (world units) between drop position and slot position to snap. */
+/** Max distance (world units) between drop position and slot position to snap. See snapDistance(). */
 export const SNAP_DISTANCE = 25;
+/** Snap radius never exceeds this fraction of min(pieceW, pieceH). */
+export const SNAP_PIECE_RATIO = 0.35;
 
-export const PIECE_COUNTS = [12, 24, 48] as const;
+/**
+ * Difficulty choices: the MINIMUM number of pieces. The actual count is
+ * cols * rows from computeGrid, which may be up to GRID_COUNT_SLACK higher so
+ * that cells stay close to square for any photo aspect.
+ */
+export const PIECE_COUNTS = [48, 96, 150, 200] as const;
 export type PieceCount = (typeof PIECE_COUNTS)[number];
+export const DEFAULT_PIECE_COUNT: PieceCount = 48;
+export const DIFFICULTY_LABELS: Record<PieceCount, string> = { 48: 'Easy', 96: 'Medium', 150: 'Hard', 200: 'Expert' };
+/** computeGrid may exceed the requested count by at most this fraction. */
+export const GRID_COUNT_SLACK = 0.1;
 
 /** Client downscales uploads so the long side is at most this many pixels. */
 export const MAX_IMAGE_LONG_SIDE = 1200;
@@ -44,10 +55,10 @@ export const SOCKET_MAX_BUFFER = 8 * 1024 * 1024;
  * The margins around it are where scattered / pile pieces go.
  */
 export const BOARD_AREA: Rect = {
-  x: (WORLD_W - 800) / 2,
-  y: (WORLD_H - 560) / 2,
-  w: 800,
-  h: 560,
+  x: (WORLD_W - 900) / 2,
+  y: (WORLD_H - 620) / 2,
+  w: 900,
+  h: 620,
 };
 
 /** Tab overhang as a fraction of min(pieceW, pieceH). Clients pad canvases by this. */
@@ -87,20 +98,24 @@ export interface Layout {
 }
 
 /**
- * Choose cols x rows with cols * rows === pieceCount exactly, picking the factor
- * pair whose cells are closest to square for the given image aspect (w / h).
+ * Choose cols x rows with pieceCount <= cols * rows <= pieceCount * (1 + GRID_COUNT_SLACK),
+ * trading off how square the cells are (for image aspect w / h) against extra pieces.
+ * E.g. 200 pieces on a square photo gives 14x15 = 210 instead of 20x10 (2:1 cells).
  */
 export function computeGrid(pieceCount: number, imageAspect: number): { cols: number; rows: number } {
+  const maxCount = Math.floor(pieceCount * (1 + GRID_COUNT_SLACK));
   let best = { cols: pieceCount, rows: 1 };
   let bestScore = Infinity;
-  for (let rows = 1; rows <= pieceCount; rows++) {
-    if (pieceCount % rows !== 0) continue;
-    const cols = pieceCount / rows;
-    const cellAspect = (imageAspect * rows) / cols;
-    const score = Math.abs(Math.log(cellAspect));
-    if (score < bestScore) {
-      bestScore = score;
-      best = { cols, rows };
+  for (let rows = 1; rows <= maxCount; rows++) {
+    const minCols = Math.ceil(pieceCount / rows);
+    const maxCols = Math.floor(maxCount / rows);
+    for (let cols = minCols; cols <= maxCols; cols++) {
+      const cellAspect = (imageAspect * rows) / cols;
+      const score = Math.abs(Math.log(cellAspect)) + (1.5 * (cols * rows - pieceCount)) / pieceCount;
+      if (score < bestScore) {
+        bestScore = score;
+        best = { cols, rows };
+      }
     }
   }
   return best;
@@ -127,6 +142,11 @@ export function slotPosition(layout: Layout, pieceId: number): { x: number; y: n
   const col = pieceId % layout.cols;
   const row = Math.floor(pieceId / layout.cols);
   return { x: layout.board.x + col * layout.pieceW, y: layout.board.y + row * layout.pieceH };
+}
+
+/** Snap radius for this layout: small pieces get a tighter radius. */
+export function snapDistance(layout: Layout): number {
+  return Math.min(SNAP_DISTANCE, SNAP_PIECE_RATIO * Math.min(layout.pieceW, layout.pieceH));
 }
 
 /** Tab overhang in world units for this layout. */
@@ -227,6 +247,7 @@ export interface RoomState {
   /** Image pixel size, so both sides compute identical layouts. */
   imageW: number;
   imageH: number;
+  /** Requested difficulty; the actual piece count is game.cols * game.rows. */
   pieceCount: PieceCount;
   /** null while phase === 'waiting'. */
   game: GameState | null;
@@ -257,6 +278,11 @@ export interface JoinRoomPayload {
 }
 
 export type JoinRoomError = 'not_found' | 'full';
+
+export interface LeaveRoomPayload {
+  roomCode: RoomCode;
+  playerId: PlayerId;
+}
 
 export type JoinRoomAck =
   | { ok: true; playerId: PlayerId; state: RoomState }
@@ -342,6 +368,14 @@ export interface ClientToServerEvents {
   drop: (pieceId: number, x: number, y: number) => void;
   /** After a win: restart with a new seed (same image). Optional new difficulty. */
   playAgain: (pieceCount?: PieceCount) => void;
+  /**
+   * Leave the room for good (the Exit button). The server releases held pieces,
+   * removes the player's seat, emits `partnerExited` to whoever remains, and
+   * deletes the room once nobody is left. A new player can take the free seat.
+   * The payload identifies the seat so an exit buffered while the socket was
+   * reconnecting still works. The ack fires once the server has processed it.
+   */
+  leaveRoom: (payload: LeaveRoomPayload, ack?: () => void) => void;
 }
 
 export interface ServerToClientEvents {
@@ -349,6 +383,8 @@ export interface ServerToClientEvents {
   playerJoined: (player: PlayerInfo) => void;
   /** A player disconnected (still within the rejoin window). */
   playerLeft: (playerId: PlayerId) => void;
+  /** A player exited on purpose (leaveRoom); their seat is gone and can be taken by a new player. */
+  partnerExited: (playerId: PlayerId) => void;
   start: (payload: StartPayload) => void;
   pieceGrabbed: (payload: PieceGrabbedPayload) => void;
   grabDenied: (payload: GrabDeniedPayload) => void;

@@ -103,6 +103,24 @@ h2 {
   padding: 0.6em 1.1em;
   font-size: 0.95rem;
 }
+.btn-exit {
+  color: #d9364f;
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px solid rgba(255, 90, 122, 0.55);
+  box-shadow: none;
+}
+.btn-exit:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--pink);
+}
+.btn-hud {
+  padding: 0.35em 1em;
+  font-size: 0.95rem;
+}
+.btn-danger {
+  background: linear-gradient(135deg, #ff3d5e, #e0284a);
+  box-shadow: 0 8px 22px rgba(224, 40, 74, 0.38);
+}
 
 .field-label {
   font-size: 0.85rem;
@@ -483,6 +501,11 @@ h2 {
     0 10px 26px rgba(0, 40, 90, 0.3);
   transform: rotate(-3deg);
 }
+.waiting-icon {
+  font-size: 3.4rem;
+  line-height: 1;
+  animation: wiggle 2.5s ease-in-out infinite;
+}
 .room-code {
   font-size: 3.2rem;
   font-weight: 700;
@@ -694,13 +717,11 @@ h2 {
   transform-origin: 50% 50%;
   transition: transform 0.15s ease;
 }
+/* Resting shadow + rim are baked into the canvas (see renderPiece); filters here
+   are only for the handful of pieces being dragged / held / animated. */
 .piece canvas {
   display: block;
-  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.95)) drop-shadow(0 3px 3px rgba(0, 30, 70, 0.45));
   transition: filter 0.2s ease;
-}
-.piece.placed canvas {
-  filter: none;
 }
 
 .piece.lifted .piece-inner {
@@ -880,6 +901,48 @@ h2 {
 }
 .win-card .pills {
   width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Modals (exit confirm, partner left)
+   -------------------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 30, 70, 0.35);
+  backdrop-filter: blur(3px);
+  animation: fade-in 0.2s ease;
+}
+.modal-card {
+  width: min(400px, 100%);
+  align-items: center;
+  text-align: center;
+  background: var(--glass-strong);
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.modal-card p {
+  margin: -6px 0 0;
+}
+.modal-icon {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .confetti {

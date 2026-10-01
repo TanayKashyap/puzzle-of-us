@@ -61,6 +61,8 @@ interface DragState {
 
 const EXPLODE_MS = 950;
 const EXPLODE_STAGGER_MS = 14;
+/** Cap on the whole stagger so big puzzles don't take ages to explode. */
+const EXPLODE_STAGGER_TOTAL_MS = 1200;
 const RETURN_MS = 550;
 const SNAP_MS = 220;
 const REMOTE_MOVE_TRANSITION = `transform ${MOVE_THROTTLE_MS * 2.5}ms linear`;
@@ -199,13 +201,15 @@ export class Board {
     this.guide.width = Math.ceil(b.w * px);
     this.guide.height = Math.ceil(b.h * px);
     const g = this.guide.getContext('2d')!;
+    // Slot outlines only: drawing the photo here would give the picture away.
     g.setTransform(px, 0, 0, px, -b.x * px, -b.y * px);
-    g.globalAlpha = 0.2;
-    g.drawImage(this.setup.image, b.x, b.y, b.w, b.h);
-    g.globalAlpha = 1;
     drawGuideEdges(g, this.cut);
 
-    for (const p of this.pieces) renderPiece(this.cut, p.id, this.setup.image, px, p.canvas);
+    for (const p of this.pieces) this.renderOne(p);
+  }
+
+  private renderOne(p: PieceView): void {
+    renderPiece(this.cut, p.id, this.setup.image, this.renderedPx, p.canvas, !p.placed);
   }
 
   // -------------------------------------------------------------------------
@@ -225,8 +229,10 @@ export class Board {
   }
 
   private applyPlaced(p: PieceView): void {
+    const changed = p.el.classList.contains('placed') !== p.placed;
     p.el.classList.toggle('placed', p.placed);
     if (p.placed) p.el.style.zIndex = '1';
+    if (changed && this.renderedPx) this.renderOne(p);
   }
 
   private applyHeld(p: PieceView): void {
@@ -287,7 +293,8 @@ export class Board {
 
     void this.world.offsetWidth;
     const startDelay = 350;
-    const total = startDelay + order.length * EXPLODE_STAGGER_MS + EXPLODE_MS + 250;
+    const stagger = Math.min(EXPLODE_STAGGER_MS, EXPLODE_STAGGER_TOTAL_MS / Math.max(1, order.length));
+    const total = startDelay + order.length * stagger + EXPLODE_MS + 250;
     this.interactiveAt = Infinity;
     // rAF is paused in background tabs; targets use p.x/p.y at that moment so the partner's
     // moves made in the meantime aren't overwritten.
@@ -295,7 +302,7 @@ export class Board {
       if (this.destroyed) return;
       order.forEach((id, i) => {
         const p = this.pieces[id];
-        const delay = startDelay + i * EXPLODE_STAGGER_MS;
+        const delay = startDelay + i * stagger;
         const spin = (Math.random() < 0.5 ? -1 : 1) * (240 + Math.random() * 480);
         p.el.style.transition = `transform ${EXPLODE_MS}ms cubic-bezier(0.22, 1.35, 0.4, 1) ${delay}ms`;
         p.el.style.transform = `translate(${p.x - this.cut.pad}px, ${p.y - this.cut.pad}px)`;

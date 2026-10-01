@@ -138,6 +138,8 @@ export function pieceCanvasSize(cut: PuzzleCut): { w: number; h: number } {
 /**
  * Render one piece into `canvas` (created if omitted). The canvas covers the cell
  * plus `pad` on every side; `pxPerUnit` is backing-store pixels per world unit.
+ * `loose` bakes in a drop shadow and white rim for loose pieces (a CSS filter on
+ * hundreds of canvases is far too slow to repaint).
  */
 export function renderPiece(
   cut: PuzzleCut,
@@ -145,6 +147,7 @@ export function renderPiece(
   image: CanvasImageSource,
   pxPerUnit: number,
   canvas: HTMLCanvasElement = document.createElement('canvas'),
+  loose = false,
 ): HTMLCanvasElement {
   const { layout, pad } = cut;
   const size = pieceCanvasSize(cut);
@@ -162,6 +165,21 @@ export function renderPiece(
   ctx.setTransform(pxPerUnit, 0, 0, pxPerUnit, 0, 0);
   ctx.translate(-(slot.x - pad), -(slot.y - pad));
   ctx.imageSmoothingQuality = 'high';
+
+  if (loose) {
+    // Shadow offsets/blur are in backing-store pixels, not world units.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 30, 70, 0.45)';
+    ctx.shadowOffsetY = Math.min(3, s * 0.05) * pxPerUnit;
+    ctx.shadowBlur = Math.min(4, s * 0.07) * pxPerUnit;
+    ctx.fillStyle = '#fff';
+    ctx.fill(path);
+    ctx.restore();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.6, s * 0.05);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.stroke(path);
+  }
 
   ctx.save();
   ctx.clip(path);
@@ -187,7 +205,7 @@ export function renderPiece(
 }
 
 /**
- * Stroke every internal piece edge once (plus the border) for the outline guide.
+ * Stroke every internal piece edge once (plus the border) for the slot-outline guide.
  * `ctx` must already be transformed so that it draws in world coordinates.
  */
 export function drawGuideEdges(ctx: CanvasRenderingContext2D, cut: PuzzleCut): void {
@@ -212,7 +230,7 @@ export function drawGuideEdges(ctx: CanvasRenderingContext2D, cut: PuzzleCut): v
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  strokeAll(Math.max(1, s * 0.03), 'rgba(0, 0, 0, 0.22)');
-  strokeAll(Math.max(0.6, s * 0.012), 'rgba(255, 255, 255, 0.32)');
+  strokeAll(Math.max(1.2, s * 0.03), 'rgba(60, 40, 110, 0.3)');
+  strokeAll(Math.max(0.6, s * 0.012), 'rgba(255, 255, 255, 0.5)');
   ctx.restore();
 }
