@@ -1,0 +1,7 @@
+node_modules/
+dist/
+client/dist/
+*.log
+.env
+screenshots/
+scripts/screenshots/

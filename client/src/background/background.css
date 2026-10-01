@@ -1,0 +1,176 @@
+.bg-root {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  background: #2f7fd6;
+}
+
+.bg-root * {
+  pointer-events: none;
+}
+
+.bg-root img {
+  display: block;
+  -webkit-user-drag: none;
+}
+
+.bg-world {
+  position: absolute;
+  inset: 0;
+  transform: scale(1.05);
+  animation: bg-drift 70s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes bg-drift {
+  0% { transform: scale(1.05) translate3d(0.9%, 0.3%, 0); }
+  100% { transform: scale(1.07) translate3d(-0.9%, -0.4%, 0); }
+}
+
+.bg-stage {
+  position: absolute;
+}
+
+.bg-stage img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Flowers: anchored at the stem base, swaying around it. */
+.bg-flower {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 100%;
+}
+
+.bg-flower-sway {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  animation: bg-sway var(--sway-dur, 6s) ease-in-out var(--sway-delay, 0s) infinite alternate;
+  will-change: transform;
+}
+
+.bg-flower-head {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 6px rgba(20, 60, 20, 0.25));
+}
+
+.bg-flower-stem {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--stem-w, 4px);
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: linear-gradient(to right, #2f6b25, #5fa83f 45%, #3b7d2b);
+}
+
+.bg-flower-leaf {
+  position: absolute;
+  bottom: 18%;
+  width: 34%;
+  height: 12%;
+  background: linear-gradient(135deg, #6dbb45, #2f6b25);
+  border-radius: 0 100% 0 100%;
+}
+
+.bg-flower-leaf.left {
+  right: 50%;
+  transform-origin: 100% 100%;
+  transform: rotate(-18deg) scaleX(-1);
+  border-radius: 100% 0 100% 0;
+}
+
+.bg-flower-leaf.right {
+  left: 50%;
+  bottom: 30%;
+  transform-origin: 0 100%;
+  transform: rotate(14deg);
+}
+
+@keyframes bg-sway {
+  0% { transform: rotate(calc(var(--sway-amp, 4deg) * -1)); }
+  100% { transform: rotate(var(--sway-amp, 4deg)); }
+}
+
+/* Moving sprites: outer element is positioned from JS every frame. */
+.bg-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.bg-sprite.visible {
+  opacity: 1;
+}
+
+.bg-sprite-face,
+.bg-sprite-anim {
+  width: 100%;
+  height: 100%;
+}
+
+.bg-sprite img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 8px rgba(10, 40, 90, 0.18));
+}
+
+.bg-flap-side .bg-sprite-anim {
+  transform-origin: 22% 60%;
+  animation: bg-flap-side var(--flap, 0.28s) ease-in-out infinite alternate;
+}
+
+.bg-flap-top .bg-sprite-anim {
+  transform-origin: 50% 55%;
+  animation: bg-flap-top var(--flap, 0.3s) ease-in-out infinite alternate;
+}
+
+@keyframes bg-flap-side {
+  0% { transform: scaleX(1); }
+  100% { transform: scaleX(0.38) skewY(-4deg); }
+}
+
+@keyframes bg-flap-top {
+  0% { transform: scale(1, 1); }
+  100% { transform: scale(0.45, 0.92); }
+}
+
+.bg-hummingbird .bg-sprite-anim {
+  animation: bg-hum 0.09s linear infinite alternate;
+}
+
+@keyframes bg-hum {
+  0% { transform: translate3d(0, -1.5px, 0) rotate(-0.6deg); }
+  100% { transform: translate3d(0, 1.5px, 0) rotate(0.6deg); }
+}
+
+.bg-star .bg-sprite-anim {
+  animation: bg-twinkle var(--twinkle, 2.4s) ease-in-out infinite alternate;
+}
+
+@keyframes bg-twinkle {
+  0% { transform: scale(0.85); opacity: 0.65; }
+  100% { transform: scale(1.08); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-world,
+  .bg-flower-sway,
+  .bg-sprite-anim {
+    animation: none !important;
+  }
+}

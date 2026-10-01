@@ -1,0 +1,35 @@
+{
+  "name": "puzzle-of-us",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Real-time two-player online jigsaw puzzle",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch --clear-screen=false server/src/index.ts",
+    "dev:client": "vite",
+    "build": "vite build && npm run typecheck",
+    "typecheck": "tsc -p server && tsc -p client",
+    "start": "tsx server/src/index.ts",
+    "test:server": "tsx server/test/smoke.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
+    "concurrently": "^10.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.5"
+  }
+}

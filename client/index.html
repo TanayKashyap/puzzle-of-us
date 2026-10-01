@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Puzzle of Us</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%A9%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <div class="conn-pill" id="conn-pill" data-state="connecting">
+        <span class="conn-dot"></span><span id="conn-text">Connecting…</span>
+      </div>
+
+      <!-- HOME -->
+      <section class="screen home" id="screen-home">
+        <div class="floaties" aria-hidden="true">
+          <span class="floaty f1"></span><span class="floaty f2"></span><span class="floaty f3"></span>
+          <span class="floaty f4"></span><span class="floaty f5"></span>
+        </div>
+        <header class="hero">
+          <h1 class="logo">Puzzle <span>of</span> Us</h1>
+          <p class="tagline">Turn any photo into a jigsaw and solve it together, live.</p>
+        </header>
+
+        <div class="cards">
+          <form class="card create-card" id="create-form" autocomplete="off">
+            <h2>Start a puzzle</h2>
+            <label class="dropzone" id="dropzone">
+              <input type="file" id="file-input" accept="image/*" hidden />
+              <img id="preview" alt="" hidden />
+              <div class="dz-empty" id="dz-empty">
+                <div class="dz-icon">🧩</div>
+                <div><strong>Choose a photo</strong></div>
+                <div class="muted">or drag one here</div>
+              </div>
+            </label>
+            <div class="field-label">Difficulty</div>
+            <div class="pills" id="difficulty"></div>
+            <button type="submit" class="btn btn-primary" id="create-btn" disabled>Create room</button>
+          </form>
+
+          <form class="card join-card" id="join-form" autocomplete="off">
+            <h2>Join a friend</h2>
+            <p class="muted">Got a room code? Pop it in.</p>
+            <input
+              class="code-input"
+              id="code-input"
+              placeholder="ABCDE"
+              spellcheck="false"
+              autocapitalize="characters"
+            />
+            <button type="submit" class="btn btn-secondary" id="join-btn" disabled>Join room</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- WAITING -->
+      <section class="screen waiting" id="screen-waiting" hidden>
+        <div class="card waiting-card">
+          <img class="waiting-thumb" id="waiting-thumb" alt="" />
+          <h2>Room ready!</h2>
+          <p class="muted">Send this to your puzzle partner:</p>
+          <div class="room-code" id="room-code">-----</div>
+          <div class="share-row">
+            <input id="share-link" readonly />
+            <button class="btn btn-primary btn-small" id="copy-btn" type="button">Copy link</button>
+          </div>
+          <div class="presence" id="waiting-presence"></div>
+          <div class="waiting-status"><span class="spinner"></span> <span id="waiting-text">Waiting for your partner to join…</span></div>
+          <button class="btn btn-ghost btn-small" id="leave-btn" type="button">Leave room</button>
+        </div>
+      </section>
+
+      <!-- GAME -->
+      <section class="screen game" id="screen-game" hidden>
+        <div class="hud">
+          <div class="hud-left">
+            <span class="hud-logo">Puzzle <span>of</span> Us</span>
+            <button class="chip" id="hud-code" type="button" title="Copy share link">-----</button>
+          </div>
+          <div class="hud-center">
+            <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+            <span id="progress-text">0 / 0</span>
+          </div>
+          <div class="hud-right">
+            <span class="timer" id="timer">00:00</span>
+            <div class="presence" id="hud-presence"></div>
+          </div>
+        </div>
+        <div class="stage" id="stage"></div>
+      </section>
+
+      <!-- WIN -->
+      <div class="win-overlay" id="win-overlay" hidden>
+        <div class="confetti" id="confetti" aria-hidden="true"></div>
+        <div class="card win-card">
+          <h2 class="win-title">You did it! 🎉</h2>
+          <img class="win-image" id="win-image" alt="Completed puzzle" />
+          <p class="win-time">Solved together in <strong id="win-time">00:00</strong></p>
+          <div class="field-label">Play again with</div>
+          <div class="pills" id="again-difficulty"></div>
+          <button class="btn btn-primary" id="again-btn" type="button">Play again</button>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" hidden></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
