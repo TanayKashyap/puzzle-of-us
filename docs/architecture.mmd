@@ -1,0 +1,6 @@
+flowchart LR
+  P1["Player 1 browser"] -->|"loads static client"| Vercel["Vercel static client"]
+  P2["Player 2 browser"] -->|"loads static client"| Vercel
+  P1 -->|"Socket.IO WebSocket"| Server["Render game server"]
+  P2 -->|"Socket.IO WebSocket"| Server
+  Server -->|"holds"| Rooms["In-memory rooms"]

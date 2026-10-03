@@ -40,14 +40,7 @@ Turn any photo into a jigsaw puzzle and solve it together with a friend, live in
 
 The static client is hosted on Vercel and connects to the game server on Render over Socket.IO. The server holds all room state in memory and decides every grab, snap and win.
 
-```mermaid
-flowchart LR
-  P1["Player 1 browser"] -->|"loads static client"| Vercel["Vercel static client"]
-  P2["Player 2 browser"] -->|"loads static client"| Vercel
-  P1 -->|"Socket.IO WebSocket"| Server["Render game server"]
-  P2 -->|"Socket.IO WebSocket"| Server
-  Server -->|"holds"| Rooms["In-memory rooms"]
-```
+![Architecture: both browsers load the static client from Vercel and connect over Socket.IO to the Render game server](docs/images/architecture.png)
 
 ## Local development
 
