@@ -26,7 +26,8 @@ const allowedOrigins: (string | RegExp)[] = [
     .split(',')
     .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean),
-  /^https:\/\/puzzle-of-us[a-z0-9-]*\.vercel\.app$/,
+  /^https:\/\/puzzle-of(-us)?\.vercel\.app$/,
+  /^https:\/\/puzzle-of(-us)?-[a-z0-9-]+-tanaykashyaps-projects\.vercel\.app$/,
 ];
 const isAllowedOrigin = (origin: string) =>
   allowedOrigins.some((o) => (typeof o === 'string' ? o === origin : o.test(origin)));
