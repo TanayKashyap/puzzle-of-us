@@ -42,11 +42,11 @@ The static client is hosted on Vercel and connects to the game server on Render 
 
 ```mermaid
 flowchart LR
-  PlayerA[Player 1 browser] -->|static files| Vercel[Vercel static client]
-  PlayerB[Player 2 browser] -->|static files| Vercel
-  PlayerA <-->|Socket.IO| Render[Render game server]
-  PlayerB <-->|Socket.IO| Render
-  Render --> Rooms[In-memory rooms]
+  P1["Player 1 browser"] -->|"loads static client"| Vercel["Vercel static client"]
+  P2["Player 2 browser"] -->|"loads static client"| Vercel
+  P1 -->|"Socket.IO WebSocket"| Server["Render game server"]
+  P2 -->|"Socket.IO WebSocket"| Server
+  Server -->|"holds"| Rooms["In-memory rooms"]
 ```
 
 ## Local development
