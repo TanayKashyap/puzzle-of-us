@@ -10,6 +10,8 @@ import {
   type PlayerId,
   JIGGLE_MS,
   MOVE_THROTTLE_MS,
+  SCORE_CORRECT,
+  SCORE_WRONG,
   WORLD_H,
   WORLD_W,
   clampToWorld,
@@ -65,6 +67,9 @@ const EXPLODE_STAGGER_MS = 14;
 const EXPLODE_STAGGER_TOTAL_MS = 1200;
 const RETURN_MS = 550;
 const SNAP_MS = 220;
+const SCORE_FLOAT_MS = 900;
+/** On-screen font size of the floating +1 / -2, independent of the board scale. */
+const SCORE_FLOAT_PX = 22;
 const REMOTE_MOVE_TRANSITION = `transform ${MOVE_THROTTLE_MS * 2.5}ms linear`;
 
 export class Board {
@@ -260,6 +265,20 @@ export class Board {
 
   private reportProgress(): void {
     this.opts.onProgress(this.placedCount, this.pieces.length);
+  }
+
+  /** Short-lived "+1" / "-2" that floats up from a piece cell at world (x, y). */
+  private floatScore(x: number, y: number, delta: number, playerId: PlayerId): void {
+    const el = document.createElement('div');
+    el.className = `score-float ${delta > 0 ? 'gain' : 'loss'}`;
+    el.textContent = delta > 0 ? `+${delta}` : String(delta);
+    el.style.left = `${x + this.layout.pieceW / 2}px`;
+    el.style.top = `${y + this.layout.pieceH / 2}px`;
+    el.style.fontSize = `${SCORE_FLOAT_PX / this.scale}px`;
+    el.style.setProperty('--c', this.opts.colorOf(playerId) ?? '#ffd34d');
+    el.style.setProperty('--float-ms', `${SCORE_FLOAT_MS}ms`);
+    this.world.appendChild(el);
+    window.setTimeout(() => el.remove(), SCORE_FLOAT_MS);
   }
 
   // -------------------------------------------------------------------------
@@ -471,12 +490,14 @@ export class Board {
       this.place(p, x, y, `transform ${SNAP_MS}ms cubic-bezier(0.3, 1.4, 0.5, 1)`);
       this.later(p, SNAP_MS * 0.6, () => this.applyPlaced(p));
       this.flashClass(p, 'snap', 750);
+      this.floatScore(x, y, SCORE_CORRECT, playerId);
       this.reportProgress();
       return;
     }
 
     if (result === 'rejected') {
       if (!mine) this.place(p, p.x, p.y, null);
+      this.floatScore(p.x, p.y, SCORE_WRONG, playerId);
       p.busyUntil = performance.now() + JIGGLE_MS + RETURN_MS;
       p.el.style.setProperty('--jiggle-ms', `${JIGGLE_MS}ms`);
       this.flashClass(p, 'jiggle', JIGGLE_MS);

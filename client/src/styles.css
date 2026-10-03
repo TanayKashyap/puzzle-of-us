@@ -676,9 +676,91 @@ h2 {
   font-weight: 600;
   font-size: 1.1rem;
 }
+
+.scores {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.score-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px solid var(--line);
+  white-space: nowrap;
+  transition:
+    opacity 0.3s,
+    border-color 0.3s,
+    background 0.3s;
+}
+.score-chip.offline {
+  opacity: 0.45;
+}
+.score-chip.offline .player-dot {
+  box-shadow: none;
+}
+.score-points {
+  min-width: 1.2em;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.score-chip.leader {
+  border-color: var(--amber);
+  background: rgba(255, 238, 180, 0.9);
+}
+/* Small crown on the leading player's chip. */
+.score-chip.leader::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 16px;
+  height: 11px;
+  margin-left: -8px;
+  background: var(--amber);
+  --crown-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 11'%3E%3Cpath d='M1 3l3.5 3L8 0l3.5 6L15 3l-1.5 8h-11z'/%3E%3C/svg%3E");
+  -webkit-mask: var(--crown-mask) center / contain no-repeat;
+  mask: var(--crown-mask) center / contain no-repeat;
+  filter: drop-shadow(0 1px 0 #fff);
+}
+.score-chip.bump-up {
+  animation: bump-up 0.6s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.score-chip.bump-down {
+  animation: bump-down 0.6s ease-in-out;
+}
+@keyframes bump-up {
+  30% {
+    transform: scale(1.18);
+    background: rgba(63, 207, 110, 0.45);
+    border-color: var(--green);
+  }
+}
+@keyframes bump-down {
+  20% {
+    transform: scale(1.14) translateX(-3px);
+    background: rgba(255, 61, 94, 0.35);
+    border-color: #e0284a;
+  }
+  45% {
+    transform: scale(1.14) translateX(3px);
+    background: rgba(255, 61, 94, 0.35);
+    border-color: #e0284a;
+  }
+}
+
 @media (max-width: 640px) {
   .hud-logo,
-  .player {
+  .player,
+  .score-label {
     font-size: 0;
     gap: 0;
   }
@@ -830,6 +912,45 @@ h2 {
   }
 }
 
+/* Floating +1 / -2 at the drop spot, outlined in the dropping player's color. */
+.score-float {
+  position: absolute;
+  z-index: 1000000;
+  pointer-events: none;
+  padding: 0.05em 0.45em;
+  border-radius: 999px;
+  border: 0.12em solid var(--c);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0.2em 0.6em rgba(0, 40, 90, 0.3);
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  animation: score-float var(--float-ms, 900ms) cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.score-float.gain {
+  color: #1f9d4c;
+}
+.score-float.loss {
+  color: #e0284a;
+}
+@keyframes score-float {
+  0% {
+    transform: translate(-50%, -30%) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -70%) scale(1.12);
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -190%) scale(1);
+    opacity: 0;
+  }
+}
+
 /* Explosion flash at the board center. */
 .boom {
   position: absolute;
@@ -916,6 +1037,44 @@ h2 {
 }
 .win-card .pills {
   width: 100%;
+}
+.win-results {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.win-banner {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.result-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid var(--line);
+}
+.result-row.winner {
+  border-color: var(--amber);
+  background: rgba(255, 238, 180, 0.85);
+}
+.result-name {
+  font-weight: 600;
+}
+.result-points {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.result-detail {
+  justify-self: end;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 /* --------------------------------------------------------------------------

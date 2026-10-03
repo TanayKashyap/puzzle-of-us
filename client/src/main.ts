@@ -10,6 +10,7 @@ import {
   type PlayerId,
   type PlayerInfo,
   type RoomState,
+  type Scores,
   DEFAULT_PIECE_COUNT,
   DIFFICULTY_LABELS,
   MAX_IMAGE_DATA_URL_LENGTH,
@@ -51,7 +52,7 @@ const waitingPresence = $('waiting-presence');
 const waitingText = $('waiting-text');
 const leaveBtn = $<HTMLButtonElement>('leave-btn');
 const hudCode = $<HTMLButtonElement>('hud-code');
-const hudPresence = $('hud-presence');
+const hudScores = $('hud-scores');
 const progressFill = $('progress-fill');
 const progressText = $('progress-text');
 const timerEl = $('timer');
@@ -59,6 +60,7 @@ const stage = $('stage');
 const winOverlay = $('win-overlay');
 const winImage = $<HTMLImageElement>('win-image');
 const winTime = $('win-time');
+const winResults = $('win-results');
 const againBtn = $<HTMLButtonElement>('again-btn');
 const confetti = $('confetti');
 const toastEl = $('toast');
@@ -100,6 +102,8 @@ let againCount: PieceCount = DEFAULT_PIECE_COUNT;
 let localStartedAt = 0;
 let hasConnectedOnce = false;
 let busy = false;
+/** Points last shown in the HUD per player, to bump chips whose score changed. */
+const shownPoints = new Map<PlayerId, number>();
 
 const playerKey = (code: string) => `puzzle-player:${code}`;
 
@@ -193,13 +197,73 @@ function renderPresence(): void {
     })
     .join('');
   waitingPresence.innerHTML = html;
-  hudPresence.innerHTML = html;
+  renderScores();
 
   const partner = players.find((p) => p.id !== myId);
   if (!partner) waitingText.textContent = 'Waiting for your partner to join…';
   else if (!partner.connected) waitingText.textContent = 'Your partner disconnected. Waiting for them to come back…';
   else waitingText.textContent = 'Partner connected! Starting…';
   board?.refreshHolders();
+}
+
+const pointsOf = (scores: Scores, id: PlayerId) => scores[id]?.points ?? 0;
+
+function formatPoints(n: number): string {
+  return `${n} ${Math.abs(n) === 1 ? 'pt' : 'pts'}`;
+}
+
+/** Live score chips in the HUD: you first, the sole leader gets a crown, changed chips bump. */
+function renderScores(): void {
+  const scores = room?.game?.scores ?? {};
+  const players = [...(room?.players ?? [])].sort((a, b) => Number(b.id === myId) - Number(a.id === myId));
+  const top = Math.max(...players.map((p) => pointsOf(scores, p.id)));
+  const leaders = players.filter((p) => pointsOf(scores, p.id) === top);
+  hudScores.innerHTML = '';
+  for (const p of players) {
+    const points = pointsOf(scores, p.id);
+    const label = p.id === myId ? 'You' : 'Partner';
+    const chip = document.createElement('span');
+    chip.className = 'score-chip';
+    chip.classList.toggle('offline', !p.connected);
+    chip.classList.toggle('leader', players.length > 1 && leaders.length === 1 && leaders[0] === p);
+    chip.title = `${label}: ${formatPoints(points)}`;
+    chip.innerHTML = `<span class="player-dot" style="--c:${p.color}"></span><span class="score-label">${label}</span><span class="score-points">${points}</span>`;
+    const prev = shownPoints.get(p.id);
+    if (prev !== undefined && prev !== points) chip.classList.add(points > prev ? 'bump-up' : 'bump-down');
+    shownPoints.set(p.id, points);
+    hudScores.appendChild(chip);
+  }
+}
+
+/** Win screen results: winner or tie banner plus each player's points and counts. */
+function renderResults(): void {
+  const scores = room?.game?.scores ?? {};
+  const entries = Object.entries(scores).sort(([a], [b]) => Number(b === myId) - Number(a === myId));
+  winResults.innerHTML = '';
+  winResults.hidden = entries.length === 0;
+  if (entries.length === 0) return;
+  const ranked = [...entries].sort(([, a], [, b]) => b.points - a.points);
+  const tie = ranked.length > 1 && ranked[0][1].points === ranked[1][1].points;
+  const winnerId = ranked.length > 1 && !tie ? ranked[0][0] : null;
+  const banner = document.createElement('div');
+  banner.className = 'win-banner';
+  if (tie) banner.textContent = "It's a tie!";
+  else if (winnerId === myId) banner.textContent = 'You win!';
+  else if (winnerId) banner.textContent = 'Partner wins!';
+  else banner.textContent = 'Final score';
+  winResults.appendChild(banner);
+  for (const [id, s] of entries) {
+    const inRoom = room?.players.some((p) => p.id === id);
+    const label = id === myId ? 'You' : inRoom ? 'Partner' : 'Former partner';
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.classList.toggle('winner', id === winnerId);
+    row.innerHTML = `<span class="player-dot" style="--c:${colorOf(id) ?? '#b9b0d6'}"></span>
+      <span class="result-name">${label}</span>
+      <span class="result-detail">${s.correct} correct, ${s.wrong} wrong</span>
+      <span class="result-points">${formatPoints(s.points)}</span>`;
+    winResults.appendChild(row);
+  }
 }
 
 type ConnState = 'connecting' | 'waking' | 'online' | 'offline';
@@ -453,6 +517,7 @@ hudCode.addEventListener('click', async () => {
 function enterRoom(playerId: PlayerId, state: RoomState): void {
   myId = playerId;
   room = state;
+  shownPoints.clear();
   sessionStorage.setItem(playerKey(state.code), playerId);
   localStorage.setItem(playerKey(state.code), playerId);
   setUrlRoom(state.code);
@@ -547,6 +612,7 @@ function withBoard(fn: (b: Board) => void): void {
 function showWin(elapsedMs: number, celebrate: boolean): void {
   winTime.textContent = formatTime(elapsedMs);
   timerEl.textContent = formatTime(elapsedMs);
+  renderResults();
   if (room) winImage.src = room.image;
   againCount = room?.pieceCount ?? againCount;
   buildPills($('again-difficulty'), againCount, (n) => (againCount = n));
@@ -652,7 +718,10 @@ socket.on('start', (payload) => {
     pieces: payload.pieces,
     startedAt: payload.startedAt,
     elapsedMs: null,
+    scores: payload.scores,
   };
+  shownPoints.clear();
+  renderScores();
   localStartedAt = Date.now();
   timerEl.textContent = '00:00';
   winOverlay.hidden = true;
@@ -666,13 +735,23 @@ socket.on('start', (payload) => {
 socket.on('pieceGrabbed', (p) => withBoard((b) => b.onPieceGrabbed(p)));
 socket.on('grabDenied', (p) => withBoard((b) => b.onGrabDenied(p)));
 socket.on('pieceMoved', (p) => withBoard((b) => b.onPieceMoved(p)));
-socket.on('dropResult', (p) => withBoard((b) => b.onDropResult(p)));
+socket.on('dropResult', (p) => {
+  if (room?.game && p.scores) {
+    room.game.scores = p.scores;
+    renderScores();
+  }
+  withBoard((b) => b.onDropResult(p));
+});
 socket.on('pieceReleased', (p) => withBoard((b) => b.onPieceReleased(p)));
 
-socket.on('win', ({ elapsedMs }) => {
+socket.on('win', ({ elapsedMs, scores }) => {
   if (!room) return;
   room.phase = 'won';
-  if (room.game) room.game.elapsedMs = elapsedMs;
+  if (room.game) {
+    room.game.elapsedMs = elapsedMs;
+    if (scores) room.game.scores = scores;
+  }
+  renderScores();
   timerEl.textContent = formatTime(elapsedMs);
   window.setTimeout(() => {
     if (room?.phase !== 'won') return;

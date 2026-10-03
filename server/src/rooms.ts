@@ -8,6 +8,8 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   ROOM_TTL_MS,
+  SCORE_CORRECT,
+  SCORE_WRONG,
   WORLD_H,
   WORLD_W,
   clampToWorld,
@@ -31,6 +33,7 @@ import {
   type PlayerInfo,
   type RoomCode,
   type RoomState,
+  type Scores,
   type ServerToClientEvents,
   type SocketData,
   type StartPayload,
@@ -175,9 +178,11 @@ function startGame(io: IO, room: Room): void {
     pieces.push({ id, x: pos.x, y: pos.y, placed: false, heldBy: null });
   }
   const startedAt = Date.now();
+  const scores: Scores = {};
+  for (const p of room.players) scores[p.id] = { points: 0, correct: 0, wrong: 0 };
   room.layout = layout;
   room.phase = 'playing';
-  room.game = { seed, cols: layout.cols, rows: layout.rows, pieces, startedAt, elapsedMs: null };
+  room.game = { seed, cols: layout.cols, rows: layout.rows, pieces, startedAt, elapsedMs: null, scores };
   const payload: StartPayload = {
     seed,
     image: room.image,
@@ -188,6 +193,7 @@ function startGame(io: IO, room: Room): void {
     rows: layout.rows,
     pieces,
     startedAt,
+    scores,
   };
   io.to(room.code).emit('start', payload);
 }
@@ -407,12 +413,29 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
       piece.y = pos.y;
     }
     piece.heldBy = null;
-    io.to(room.code).emit('dropResult', { pieceId: piece.id, playerId: player.id, result, x: piece.x, y: piece.y });
+    if (result !== 'free') {
+      const score = (game.scores[player.id] ??= { points: 0, correct: 0, wrong: 0 });
+      if (result === 'snapped') {
+        score.points += SCORE_CORRECT;
+        score.correct++;
+      } else {
+        score.points += SCORE_WRONG;
+        score.wrong++;
+      }
+    }
+    io.to(room.code).emit('dropResult', {
+      pieceId: piece.id,
+      playerId: player.id,
+      result,
+      x: piece.x,
+      y: piece.y,
+      scores: game.scores,
+    });
 
     if (result === 'snapped' && game.pieces.every((p) => p.placed)) {
       room.phase = 'won';
       game.elapsedMs = Date.now() - game.startedAt;
-      io.to(room.code).emit('win', { elapsedMs: game.elapsedMs });
+      io.to(room.code).emit('win', { elapsedMs: game.elapsedMs, scores: game.scores });
     }
   });
 

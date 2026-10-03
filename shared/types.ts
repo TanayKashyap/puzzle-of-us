@@ -75,6 +75,10 @@ export const ROOM_TTL_MS = 5 * 60 * 1000;
 export const MOVE_THROTTLE_MS = 33;
 /** Duration of the wrong-drop jiggle before the piece flies back to the pile. */
 export const JIGGLE_MS = 400;
+/** Points for snapping a piece into its slot. */
+export const SCORE_CORRECT = 1;
+/** Points for dropping a piece on the board in the wrong spot (scores may go negative). */
+export const SCORE_WRONG = -2;
 
 // ---------------------------------------------------------------------------
 // Geometry / layout helpers (server and client MUST use these to agree)
@@ -226,6 +230,15 @@ export interface PieceState {
 
 export type RoomPhase = 'waiting' | 'playing' | 'won';
 
+export interface PlayerScore {
+  points: number;
+  correct: number;
+  wrong: number;
+}
+
+/** Per-game scores by player id. Entries of players who exited are kept for the results. */
+export type Scores = Record<PlayerId, PlayerScore>;
+
 export interface GameState {
   seed: number;
   cols: number;
@@ -236,6 +249,7 @@ export interface GameState {
   startedAt: number;
   /** Set once phase === 'won'. */
   elapsedMs: number | null;
+  scores: Scores;
 }
 
 export interface RoomState {
@@ -303,6 +317,7 @@ export interface StartPayload {
    */
   pieces: PieceState[];
   startedAt: number;
+  scores: Scores;
 }
 
 export interface PieceGrabbedPayload {
@@ -338,6 +353,8 @@ export interface DropResultPayload {
   result: DropResultKind;
   x: number;
   y: number;
+  /** Full score map after this drop (snapped SCORE_CORRECT, rejected SCORE_WRONG, free unchanged). */
+  scores: Scores;
 }
 
 /** Piece released without a drop (e.g. holder disconnected). */
@@ -349,6 +366,7 @@ export interface PieceReleasedPayload {
 
 export interface WinPayload {
   elapsedMs: number;
+  scores: Scores;
 }
 
 // ---------------------------------------------------------------------------

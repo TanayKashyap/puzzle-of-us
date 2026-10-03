@@ -9,6 +9,8 @@ import { Server } from 'socket.io';
 import { io as connect, type Socket } from 'socket.io-client';
 import {
   PIECE_COUNTS,
+  SCORE_CORRECT,
+  SCORE_WRONG,
   SOCKET_MAX_BUFFER,
   WORLD_H,
   WORLD_W,
@@ -147,6 +149,13 @@ async function main(): Promise<void> {
     if (!joined.ok) return;
     const [start] = await Promise.all([startA, startB]);
     assert(start.pieces.length === total && total >= N, `start received with ${total} pieces`);
+    const hostId = created.playerId;
+    const guestId = joined.playerId;
+    assert(
+      Object.keys(start.scores).length === 2 &&
+        Object.values(start.scores).every((s) => s.points === 0 && s.correct === 0 && s.wrong === 0),
+      'start scores are zero for both players',
+    );
 
     const full = await c.emitWithAck('joinRoom', { roomCode: code });
     assert(!full.ok && full.error === 'full', 'third player -> full');
@@ -173,6 +182,10 @@ async function main(): Promise<void> {
     a.emit('drop', 0, s0.x + snapR + 1, s0.y);
     let dr = await dropped;
     assert(dr.result === 'rejected', `drop ${(snapR + 1).toFixed(1)} from slot (radius ${snapR.toFixed(1)}) -> rejected`);
+    assert(
+      dr.scores[hostId].points === SCORE_WRONG && dr.scores[hostId].wrong === 1 && dr.scores[guestId].points === 0,
+      `wrong drop scores ${SCORE_WRONG} (goes negative)`,
+    );
 
     a.emit('grab', 0);
     await once(a, 'pieceGrabbed');
@@ -180,6 +193,10 @@ async function main(): Promise<void> {
     a.emit('drop', 0, s0.x + 5, s0.y - 5);
     dr = await dropped;
     assert(dr.result === 'snapped' && dr.x === s0.x && dr.y === s0.y, 'drop near slot -> snapped');
+    assert(
+      dr.scores[hostId].points === SCORE_WRONG + SCORE_CORRECT && dr.scores[hostId].correct === 1,
+      `snap scores +${SCORE_CORRECT}`,
+    );
 
     // Wrong spot on the board -> rejected back to pile.
     b.emit('grab', 1);
@@ -197,6 +214,10 @@ async function main(): Promise<void> {
     b.emit('drop', 1, 20, 20);
     dr = await dropped;
     assert(dr.result === 'free' && dr.x === 20 && dr.y === 20, 'off-board drop -> free');
+    assert(
+      dr.scores[guestId].points === SCORE_WRONG && dr.scores[guestId].wrong === 1,
+      'off-board drop leaves the score unchanged',
+    );
 
     // Bad input is ignored silently.
     a.emit('grab', 999);
@@ -209,6 +230,10 @@ async function main(): Promise<void> {
     extra.push(a2);
     const rejoin: JoinRoomAck = await a2.emitWithAck('joinRoom', { roomCode: code, playerId: created.playerId });
     assert(rejoin.ok && rejoin.state.phase === 'playing' && rejoin.state.game?.pieces[0].placed, 'host rejoins with game state');
+    assert(
+      rejoin.ok && rejoin.state.game?.scores[hostId].points === SCORE_WRONG + SCORE_CORRECT,
+      'rejoin state carries scores',
+    );
 
     // Guest grabs a piece, then exits for good.
     b.emit('grab', 2);
@@ -250,11 +275,27 @@ async function main(): Promise<void> {
     assert(true, `all ${total} pieces snapped`);
     const w = await win;
     assert(typeof w.elapsedMs === 'number' && w.elapsedMs >= 0, 'win received');
+    const cSnaps = Math.floor(total / 2);
+    const aSnaps = total - 1 - cSnaps;
+    assert(
+      w.scores[cj.playerId].points === cSnaps * SCORE_CORRECT &&
+        w.scores[hostId].points === SCORE_WRONG + (1 + aSnaps) * SCORE_CORRECT &&
+        w.scores[hostId].correct === 1 + aSnaps &&
+        w.scores[guestId].points === SCORE_WRONG,
+      `win carries scores (host ${w.scores[hostId].points}, new player ${w.scores[cj.playerId].points}, exited guest kept)`,
+    );
 
     const again = once<StartPayload>(c, 'start');
     a2.emit('playAgain', 96);
     const st2 = await again;
     assert(st2.pieces.length >= 96 && st2.pieces.every((p) => !p.placed), `playAgain restarts with ${st2.pieces.length} pieces`);
+    assert(
+      Object.keys(st2.scores).length === 2 &&
+        st2.scores[hostId]?.points === 0 &&
+        st2.scores[cj.playerId]?.points === 0 &&
+        !(guestId in st2.scores),
+      'playAgain resets scores for the current players',
+    );
 
     // Both leave -> room deleted.
     await a2.emitWithAck('leaveRoom', { roomCode: code, playerId: created.playerId });

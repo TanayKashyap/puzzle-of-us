@@ -17,12 +17,13 @@ Turn any photo into a jigsaw puzzle and solve it together with a friend, live in
 3. The picture bursts apart into pieces scattered around the board. Only the slot outlines are shown, so neither of you sees the full photo until it is solved.
 4. Drag pieces onto the board. A piece dropped close to its slot snaps in and locks. A piece dropped in the wrong spot jiggles and flies back to the pile. Pieces dropped off the board stay where you leave them.
 5. You can both drag at the same time. A piece your partner is holding glows in their color and cannot be grabbed.
-6. When the last piece snaps in, you see the photo and your time, and can play again at any difficulty. Use **Exit** at any time to leave; your partner can keep going solo or invite someone else into the free seat.
+6. Each piece you snap in earns you 1 point; each wrong-spot drop costs 2. When the last piece snaps in, you see the photo, your time and who scored more, and can play again at any difficulty. Use **Exit** at any time to leave; your partner can keep going solo or invite someone else into the free seat.
 
 ## Features
 
 - Real-time two-player play over WebSockets, with server-authoritative piece locking and snapping
 - Jigsaw pieces with tabs cut deterministically from a shared seed, so both players see identical shapes
+- Friendly competition: +1 for each piece you snap in, -2 for each wrong-spot drop (scores can go negative), shown live in the top bar with a floating +1 / -2, and the win screen crowns the winner or calls a tie
 - Explosion intro, snap glow, wrong-drop jiggle and confetti on completion
 - Reconnect and rejoin with the same link after a refresh or dropped connection
 - Images are downscaled in the browser before upload; nothing is stored on disk, rooms live in memory
