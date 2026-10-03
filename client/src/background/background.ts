@@ -70,7 +70,7 @@ interface Sprite {
   size: number;
   age: number;
   /** Returns false once the sprite has left the screen. */
-  step(dt: number, w: number, h: number): boolean;
+  step(dt: number): boolean;
 }
 
 let mounted = false;
@@ -334,7 +334,7 @@ export function mountBackground(container: HTMLElement = document.body): void {
 
     for (let i = sprites.length - 1; i >= 0; i--) {
       const sp = sprites[i];
-      if (!sp.step(dt, vw, vh)) {
+      if (!sp.step(dt)) {
         sp.el.remove();
         sprites.splice(i, 1);
       }

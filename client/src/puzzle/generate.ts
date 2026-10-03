@@ -131,13 +131,13 @@ export function buildCut(seed: number, layout: Layout): PuzzleCut {
 }
 
 /** CSS size (world units) of a piece canvas, including tab padding. */
-export function pieceCanvasSize(cut: PuzzleCut): { w: number; h: number } {
+function pieceCanvasSize(cut: PuzzleCut): { w: number; h: number } {
   return { w: cut.layout.pieceW + 2 * cut.pad, h: cut.layout.pieceH + 2 * cut.pad };
 }
 
 /**
- * Render one piece into `canvas` (created if omitted). The canvas covers the cell
- * plus `pad` on every side; `pxPerUnit` is backing-store pixels per world unit.
+ * Render one piece into `canvas`. The canvas covers the cell plus `pad` on every
+ * side; `pxPerUnit` is backing-store pixels per world unit.
  * `loose` bakes in a drop shadow and white rim for loose pieces (a CSS filter on
  * hundreds of canvases is far too slow to repaint).
  */
@@ -146,9 +146,9 @@ export function renderPiece(
   id: number,
   image: CanvasImageSource,
   pxPerUnit: number,
-  canvas: HTMLCanvasElement = document.createElement('canvas'),
-  loose = false,
-): HTMLCanvasElement {
+  canvas: HTMLCanvasElement,
+  loose: boolean,
+): void {
   const { layout, pad } = cut;
   const size = pieceCanvasSize(cut);
   canvas.width = Math.max(1, Math.ceil(size.w * pxPerUnit));
@@ -201,7 +201,6 @@ export function renderPiece(
   ctx.lineWidth = Math.max(0.5, s * 0.012);
   ctx.strokeStyle = 'rgba(20, 10, 30, 0.45)';
   ctx.stroke(path);
-  return canvas;
 }
 
 /**

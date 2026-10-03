@@ -302,9 +302,6 @@ h2 {
   backdrop-filter: blur(10px);
   box-shadow: var(--glass-shadow);
 }
-.wake-banner[hidden] {
-  display: none;
-}
 
 .cards {
   position: relative;

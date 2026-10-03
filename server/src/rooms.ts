@@ -21,6 +21,7 @@ import {
   tabPad,
   type ClientToServerEvents,
   type CreateRoomAck,
+  type DropResultKind,
   type InterServerEvents,
   type JoinRoomAck,
   type Layout,
@@ -36,7 +37,7 @@ import {
 } from '../../shared/types';
 import type { IO } from './index';
 
-export type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
 interface Player extends PlayerInfo {
   /** Socket currently bound to this player, or null while disconnected. */
@@ -364,12 +365,7 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
       return;
     }
     if (piece.heldBy === player.id) return;
-    for (const other of room.game!.pieces) {
-      if (other.heldBy === player.id) {
-        other.heldBy = null;
-        io.to(room.code).emit('pieceReleased', { pieceId: other.id, x: other.x, y: other.y });
-      }
-    }
+    releaseHeldBy(io, room, player.id);
     piece.heldBy = player.id;
     io.to(room.code).emit('pieceGrabbed', { pieceId: piece.id, playerId: player.id });
   });
@@ -392,7 +388,7 @@ export function registerRoomHandlers(io: IO, socket: GameSocket): void {
     const { room, player, piece, layout } = ctx;
     const game = room.game!;
     const slot = slotPosition(layout, piece.id);
-    let result: 'snapped' | 'rejected' | 'free';
+    let result: DropResultKind;
     if (Math.hypot(x - slot.x, y - slot.y) <= snapDistance(layout)) {
       result = 'snapped';
       piece.x = slot.x;

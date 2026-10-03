@@ -50,7 +50,7 @@ export const MAX_IMAGE_DATA_URL_LENGTH = 6 * 1024 * 1024;
 export const SOCKET_MAX_BUFFER = 8 * 1024 * 1024;
 
 /**
- * The area the board (faded image outline) may occupy, centered in the world.
+ * The area the board (slot outlines) may occupy, centered in the world.
  * The actual board is the image fitted inside this rect (see computeLayout).
  * The margins around it are where scattered / pile pieces go.
  */
@@ -395,7 +395,6 @@ export interface ServerToClientEvents {
   win: (payload: WinPayload) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface InterServerEvents {}
 
 /** Per-socket data stored by the server (socket.data). */
