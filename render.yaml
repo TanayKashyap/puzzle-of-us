@@ -10,3 +10,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: ALLOWED_ORIGINS
+        sync: false

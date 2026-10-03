@@ -1,6 +1,6 @@
 import './styles.css';
 import { mountBackground } from './background/background';
-import { socket } from './net';
+import { socket, wakeServer } from './net';
 import { Board } from './puzzle/board';
 import {
   type CreateRoomError,
@@ -32,6 +32,7 @@ const screens = {
 };
 const connPill = $('conn-pill');
 const connText = $('conn-text');
+const wakeBanner = $('wake-banner');
 const fileInput = $<HTMLInputElement>('file-input');
 const dropzone = $('dropzone');
 const preview = $<HTMLImageElement>('preview');
@@ -201,15 +202,26 @@ function renderPresence(): void {
   board?.refreshHolders();
 }
 
-function setConn(state: 'connecting' | 'online' | 'offline'): void {
+type ConnState = 'connecting' | 'waking' | 'online' | 'offline';
+const CONN_TEXT: Record<ConnState, string> = {
+  connecting: 'Connecting…',
+  waking: 'Waking server…',
+  online: 'Connected',
+  offline: 'Reconnecting…',
+};
+
+function setConn(state: ConnState): void {
   connPill.dataset.state = state;
-  connText.textContent = state === 'online' ? 'Connected' : state === 'offline' ? 'Reconnecting…' : 'Connecting…';
+  connText.textContent = CONN_TEXT[state];
+  wakeBanner.hidden = state !== 'waking';
+  setBusy(busy);
 }
 
 function setBusy(b: boolean): void {
   busy = b;
-  createBtn.disabled = b || !prepared;
-  joinBtn.disabled = b || codeInput.value.length !== ROOM_CODE_LENGTH;
+  const offline = !socket.connected;
+  createBtn.disabled = b || offline || !prepared;
+  joinBtn.disabled = b || offline || codeInput.value.length !== ROOM_CODE_LENGTH;
   createBtn.textContent = b ? 'Working…' : 'Create room';
 }
 
@@ -587,7 +599,10 @@ socket.on('connect', () => {
   hasConnectedOnce = true;
 });
 socket.on('disconnect', () => setConn('offline'));
-socket.io.on('reconnect_attempt', () => setConn('offline'));
+socket.io.on('reconnect_attempt', () => {
+  if (hasConnectedOnce) setConn('offline');
+  else wakeServer();
+});
 
 socket.on('playerJoined', (player: PlayerInfo) => {
   if (!room) return;
@@ -674,6 +689,12 @@ mountBackground();
 showScreen('home');
 setConn(socket.connected ? 'online' : 'connecting');
 if (socket.connected) hasConnectedOnce = true;
+else {
+  wakeServer();
+  window.setTimeout(() => {
+    if (!hasConnectedOnce && !socket.connected) setConn('waking');
+  }, 1500);
+}
 
 const urlCode = new URLSearchParams(location.search).get('room')?.toUpperCase();
 if (urlCode) {

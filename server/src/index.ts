@@ -20,11 +20,30 @@ const HOST = process.env.HOST || '0.0.0.0';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(here, '../../client/dist');
 
+/** Cross-origin sites allowed to connect: ALLOWED_ORIGINS (comma-separated) plus this project's Vercel URLs. */
+const allowedOrigins: (string | RegExp)[] = [
+  ...(process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
+  /^https:\/\/puzzle-of-us[a-z0-9-]*\.vercel\.app$/,
+];
+const isAllowedOrigin = (origin: string) =>
+  allowedOrigins.some((o) => (typeof o === 'string' ? o === origin : o.test(origin)));
+
 const app = express();
 const httpServer = createServer(app);
-const io: IO = new Server(httpServer, { maxHttpBufferSize: SOCKET_MAX_BUFFER });
+const io: IO = new Server(httpServer, {
+  maxHttpBufferSize: SOCKET_MAX_BUFFER,
+  cors: { origin: allowedOrigins },
+});
 
-app.get('/healthz', (_req, res) => {
+app.get('/healthz', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.json({ ok: true });
 });
 
